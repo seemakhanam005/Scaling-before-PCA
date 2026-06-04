@@ -3,7 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Why Scale Before PCA?</title>
+
+<!-- ============================================ -->
+<!-- SEO IMPROVEMENTS - ADDED TITLE & META TAGS   -->
+<!-- ============================================ -->
+<title>Why Scale Before PCA? | Feature Scaling for Principal Component Analysis</title>
+<meta name="description" content="Learn why standardizing features before PCA is crucial. See how scaling prevents variance distortion with examples of age, salary, height, and weight data. Complete guide with Python code.">
+<meta name="keywords" content="PCA, Principal Component Analysis, feature scaling, standardization, StandardScaler, machine learning, dimensionality reduction, data preprocessing, z-score, covariance matrix">
+<meta name="author" content="Seema Khanam">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph / Social Media Meta Tags -->
+<meta property="og:title" content="Why Scale Before PCA? | Feature Scaling for Principal Component Analysis">
+<meta property="og:description" content="Learn why standardizing features before PCA is crucial. Complete guide with examples and Python code.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://seemakhanam005.github.io/Scaling-before-PCA/">
+<meta property="og:image" content="https://seemakhanam005.github.io/Scaling-before-PCA/og-image.png">
+
+<!-- Twitter Card Meta Tags -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Why Scale Before PCA?">
+<meta name="twitter:description" content="Learn why standardizing features before PCA is crucial for proper dimensionality reduction.">
+
+<!-- Canonical URL -->
+<link rel="canonical" href="https://seemakhanam005.github.io/Scaling-before-PCA/">
+
+<!-- Robots.txt reference (optional but good practice) -->
+<link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml">
+
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -494,7 +521,27 @@
   /* ── FADE UP ── */
   .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.65s ease, transform 0.65s ease; }
   .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── SCHEMA MARKUP (hidden but helps SEO) ── */
+  .schema-hidden { display: none; }
 </style>
+
+<!-- Schema.org markup for better SEO (hidden but parsable by search engines) -->
+<script type="application/ld+json" class="schema-hidden">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Why Scale Before PCA?",
+  "description": "Learn why standardizing features before Principal Component Analysis is crucial for proper dimensionality reduction.",
+  "author": {
+    "@type": "Person",
+    "name": "Seema Khanam"
+  },
+  "datePublished": "2024-01-01",
+  "articleSection": "Machine Learning",
+  "keywords": "PCA, feature scaling, standardization, dimensionality reduction"
+}
+</script>
 </head>
 <body>
 
@@ -508,6 +555,7 @@
 
   <div class="hero-content">
     <div class="tag">Critical Concept</div>
+    <!-- H1 is already present as hero-title -->
     <h1 class="hero-title">Why Scale Before <em>PCA</em>?</h1>
     <p class="hero-sub">PCA follows variance. If your data isn't scaled, it follows the feature with the biggest numbers — not necessarily the most important information.</p>
     <div class="hero-scroll">▼ &nbsp; scroll to explore</div>
