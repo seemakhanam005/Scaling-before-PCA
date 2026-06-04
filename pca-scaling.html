@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why Scale Before PCA?</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #050510;
+    --surface:  #0d0d22;
+    --surface2: #111128;
+    --border:   #1e1e40;
+    --border2:  #2a2a55;
+    --neon-cyan:  #00f5ff;
+    --neon-pink:  #ff2d78;
+    --neon-green: #39ff85;
+    --neon-gold:  #ffe44d;
+    --text:     #e2e0f0;
+    --muted:    #6b6890;
+    --card:     #0d0d22;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    line-height: 1.75;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINES overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.08) 0px,
+      rgba(0,0,0,0.08) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* animated grid bg */
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridShift 20s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes gridShift {
+    from { background-position: 0 0; }
+    to   { background-position: 60px 60px; }
+  }
+
+  /* glow orbs */
+  .hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+  }
+  .hero-glow.g1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,245,255,0.15), transparent 70%);
+    top: -100px; left: -100px;
+    animation: orbFloat 8s ease-in-out infinite alternate;
+  }
+  .hero-glow.g2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,45,120,0.12), transparent 70%);
+    bottom: 0; right: 0;
+    animation: orbFloat 10s ease-in-out infinite alternate-reverse;
+  }
+  @keyframes orbFloat {
+    from { transform: translate(0,0); }
+    to   { transform: translate(40px, 30px); }
+  }
+
+  .hero-band {
+    background: rgba(0,245,255,0.06);
+    border-bottom: 1px solid rgba(0,245,255,0.15);
+    color: var(--neon-cyan);
+    text-align: center;
+    padding: 10px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px 60px;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    border: 1px solid var(--neon-pink);
+    color: var(--neon-pink);
+    padding: 5px 16px;
+    margin-bottom: 32px;
+    box-shadow: 0 0 12px rgba(255,45,120,0.3), inset 0 0 12px rgba(255,45,120,0.05);
+  }
+
+  .hero-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2.8rem, 8vw, 6.5rem);
+    font-weight: 700;
+    line-height: 1.0;
+    max-width: 900px;
+    margin-bottom: 24px;
+    letter-spacing: -0.03em;
+  }
+
+  .hero-title em {
+    font-style: normal;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px rgba(0,245,255,0.6), 0 0 60px rgba(0,245,255,0.25);
+  }
+
+  .hero-sub {
+    color: var(--muted);
+    max-width: 560px;
+    font-size: 1.05rem;
+    margin-bottom: 48px;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-scroll {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    animation: bounce 2s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(6px); }
+  }
+
+  .hero-footer {
+    border-top: 1px solid var(--border2);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    position: relative;
+    z-index: 2;
+    background: rgba(13,13,34,0.7);
+    backdrop-filter: blur(10px);
+  }
+  .hero-footer div {
+    padding: 18px 28px;
+    border-right: 1px solid var(--border);
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .hero-footer div:last-child { border-right: none; }
+  .hero-footer span {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 12px rgba(0,245,255,0.5);
+    letter-spacing: -0.02em;
+    margin-bottom: 2px;
+  }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 840px; margin: 0 auto; padding: 0 28px; }
+
+  section { padding: 80px 0; }
+  section + section { border-top: 1px solid var(--border); }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--neon-pink);
+    margin-bottom: 16px;
+    text-shadow: 0 0 10px rgba(255,45,120,0.4);
+  }
+
+  h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.7rem, 4vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 28px;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  p { margin-bottom: 20px; color: #b0adc8; }
+  strong { font-weight: 600; color: var(--text); }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-left: 3px solid var(--neon-cyan);
+    padding: 20px 28px;
+    background: rgba(0,245,255,0.04);
+    margin: 32px 0;
+    font-size: 1.05rem;
+    color: var(--text);
+    box-shadow: 0 0 20px rgba(0,245,255,0.07);
+    font-style: italic;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; margin: 32px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+  }
+  th {
+    background: rgba(0,245,255,0.08);
+    color: var(--neon-cyan);
+    padding: 12px 20px;
+    text-align: left;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 11px;
+    border-bottom: 1px solid rgba(0,245,255,0.2);
+  }
+  td {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    color: #c8c5e0;
+  }
+  tr:hover td { background: rgba(0,245,255,0.04); }
+
+  /* ── VARIANCE VISUAL ── */
+  .variance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 36px 0;
+  }
+  @media (max-width: 600px) { .variance-grid { grid-template-columns: 1fr; } }
+
+  .var-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .var-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+  }
+  .var-card.small::before { background: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan); }
+  .var-card.large::before { background: var(--neon-pink); box-shadow: 0 0 10px var(--neon-pink); }
+
+  .var-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .var-feature { font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; color: #fff; }
+  .var-range { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+  .bar-track { height: 8px; background: var(--border); border-radius: 0; overflow: hidden; }
+  .bar-fill {
+    height: 100%;
+    animation: grow 1.4s cubic-bezier(.22,.61,.36,1) both;
+    animation-play-state: paused;
+  }
+  .bar-fill.animated { animation-play-state: running; }
+  .var-card.small .bar-fill { background: var(--neon-cyan); width: 3%; box-shadow: 0 0 8px var(--neon-cyan); }
+  .var-card.large .bar-fill { background: var(--neon-pink); width: 100%; box-shadow: 0 0 8px var(--neon-pink); }
+  @keyframes grow { from { width: 0 !important; } to {} }
+
+  .var-verdict { margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 4px 10px; display: inline-block; }
+  .var-card.small .var-verdict { background: rgba(0,245,255,0.1); color: var(--neon-cyan); }
+  .var-card.large .var-verdict { background: rgba(255,45,120,0.1); color: var(--neon-pink); }
+
+  /* ── AXES VISUAL ── */
+  .axes-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 40px 0; }
+  @media (max-width: 580px) { .axes-duo { grid-template-columns: 1fr; } }
+
+  .axes-card { background: var(--surface); border: 1px solid var(--border2); padding: 24px 20px 20px; }
+  .axes-card h4 { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; color: var(--muted); }
+  .axes-card h4 span { font-size: 10px; padding: 2px 8px; margin-left: 8px; vertical-align: middle; }
+  .bad span { background: rgba(255,45,120,0.15); color: var(--neon-pink); }
+  .good span { background: rgba(57,255,133,0.12); color: var(--neon-green); }
+  .axis-svg { width: 100%; }
+
+  /* ── FORMULA ── */
+  .formula-box {
+    background: var(--surface2);
+    border: 1px solid rgba(0,245,255,0.2);
+    padding: 36px 40px;
+    margin: 40px 0;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,245,255,0.06);
+  }
+  .formula-box::after {
+    content: 'z-score';
+    position: absolute;
+    bottom: -10px; right: 20px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 5rem;
+    font-weight: 800;
+    color: rgba(0,245,255,0.04);
+    pointer-events: none;
+  }
+  .formula-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--neon-cyan); margin-bottom: 20px; }
+  .formula-math {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(0,245,255,0.3);
+  }
+  .formula-math .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 8px; gap: 2px; }
+  .formula-math .num, .formula-math .den { font-size: 0.6em; }
+  .formula-math .bar { width: 100%; height: 2px; background: var(--neon-cyan); box-shadow: 0 0 6px var(--neon-cyan); }
+  .formula-legend { display: flex; gap: 28px; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); }
+  .formula-legend strong { color: var(--neon-gold); margin-right: 6px; }
+
+  /* ── STAT CHIPS ── */
+  .after-table-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+  @media (max-width: 540px) { .after-table-grid { grid-template-columns: 1fr; } }
+
+  .stat-chip {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    padding: 20px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-chip::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 2px; width: 100%;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+    box-shadow: 0 0 10px var(--neon-cyan);
+  }
+  .stat-chip .num { font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 700; color: var(--neon-cyan); text-shadow: 0 0 20px rgba(0,245,255,0.5); }
+  .stat-chip .lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+
+  /* ── CODE ── */
+  .code-wrap {
+    background: #08081a;
+    border: 1px solid var(--border2);
+    border-left: 3px solid var(--neon-cyan);
+    color: #c8c5e0;
+    padding: 28px 32px;
+    margin: 32px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.9;
+    overflow-x: auto;
+    position: relative;
+    box-shadow: 0 0 30px rgba(0,245,255,0.04);
+  }
+  .code-chip { position: absolute; top: 12px; right: 16px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .code-wrap .comment { color: #3d3d60; }
+  .code-wrap .keyword { color: var(--neon-pink); }
+  .code-wrap .cls     { color: var(--neon-cyan); }
+  .code-wrap .fn      { color: var(--neon-gold); }
+  .code-wrap .str     { color: var(--neon-green); }
+
+  /* ── RULE CARDS ── */
+  .rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 36px 0; }
+  @media (max-width: 580px) { .rule-grid { grid-template-columns: 1fr; } }
+
+  .rule-card { padding: 28px 24px; border: 1px solid; }
+  .rule-card.do   { background: rgba(57,255,133,0.04);  border-color: rgba(57,255,133,0.25); }
+  .rule-card.skip { background: rgba(255,228,77,0.04);  border-color: rgba(255,228,77,0.25); }
+
+  .rule-card h3 { font-family: 'Space Grotesk', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: #fff; }
+  .rule-card.do   h3 { color: var(--neon-green); }
+  .rule-card.skip h3 { color: var(--neon-gold); }
+  .rule-card ul { list-style: none; padding: 0; }
+  .rule-card ul li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.92rem; display: flex; gap: 10px; align-items: flex-start; color: #9a97b8; }
+  .rule-card ul li::before { content: '→'; opacity: 0.4; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── PIPELINE ── */
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 28px 0; flex-wrap: wrap; }
+  .pipe-step { background: var(--surface); border: 1px solid var(--border2); padding: 12px 22px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .pipe-step.highlight-step {
+    background: rgba(0,245,255,0.08);
+    color: var(--neon-cyan);
+    border-color: rgba(0,245,255,0.35);
+    box-shadow: 0 0 16px rgba(0,245,255,0.12);
+  }
+  .pipe-arrow { font-size: 1.1rem; color: var(--muted); padding: 0 6px; }
+
+  /* ── MEMORY ── */
+  .memory {
+    background: var(--surface2);
+    border-top: 1px solid var(--border2);
+    border-bottom: 1px solid var(--border2);
+    padding: 64px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .memory::before {
+    content: '!';
+    position: absolute;
+    top: -60px; left: -20px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18rem;
+    font-weight: 800;
+    color: rgba(0,245,255,0.025);
+    pointer-events: none;
+    line-height: 1;
+  }
+  .memory::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,245,255,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .memory-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--neon-cyan); margin-bottom: 24px; display: block; text-shadow: 0 0 10px rgba(0,245,255,0.5); }
+  .memory-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.1rem, 3vw, 1.8rem);
+    font-weight: 600;
+    line-height: 1.55;
+    max-width: 700px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    color: #fff;
+  }
+  .memory-text em { font-style: normal; color: var(--neon-cyan); text-shadow: 0 0 16px rgba(0,245,255,0.5); }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    flex-wrap: wrap;
+    gap: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── FADE UP ── */
+  .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.65s ease, transform 0.65s ease; }
+  .fade-up.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow g1"></div>
+  <div class="hero-glow g2"></div>
+
+  <div class="hero-band">Machine Learning · Dimensionality Reduction · Data Preprocessing</div>
+
+  <div class="hero-content">
+    <div class="tag">Critical Concept</div>
+    <h1 class="hero-title">Why Scale Before <em>PCA</em>?</h1>
+    <p class="hero-sub">PCA follows variance. If your data isn't scaled, it follows the feature with the biggest numbers — not necessarily the most important information.</p>
+    <div class="hero-scroll">▼ &nbsp; scroll to explore</div>
+  </div>
+
+  <div class="hero-footer">
+    <div><span>PCA</span>Principal Component Analysis</div>
+    <div><span>σ = 1</span>After Standardization</div>
+    <div><span>μ = 0</span>Zero-Centered Data</div>
+  </div>
+</section>
+
+
+<!-- WHAT IS PCA -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">01 — Foundations</div>
+    <h2>What does PCA actually do?</h2>
+    <p>Principal Component Analysis (PCA) scans your dataset and hunts for directions in which the data has the <strong>maximum spread — maximum variance</strong>. It then rotates your coordinate system to align with those high-variance directions.</p>
+    <p>These new directions are called <strong>Principal Components</strong>. The first component captures the most variance, the second captures the next-most, and so on.</p>
+    <div class="callout">PCA gives more importance to features that have larger variance. This is the root cause of everything that follows.</div>
+  </div>
+</section>
+
+
+<!-- THE PROBLEM -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">02 — The Problem</div>
+    <h2>What happens without scaling?</h2>
+    <p>Imagine a dataset with two features: <strong>Age</strong> and <strong>Salary</strong>. On the surface, both seem equally relevant. But look at their raw numbers:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Age (years)</th><th>Salary (₹)</th></tr></thead>
+        <tbody>
+          <tr><td>20</td><td>20,000</td></tr>
+          <tr><td>25</td><td>50,000</td></tr>
+          <tr><td>30</td><td>80,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The numerical ranges are wildly different. Now let's see what that means for variance:</p>
+
+    <div class="variance-grid">
+      <div class="var-card small">
+        <div class="var-label">Feature</div>
+        <div class="var-feature">Age</div>
+        <div class="var-range">Range: 20 → 30 &nbsp;|&nbsp; Spread of 10</div>
+        <div class="bar-track"><div class="bar-fill"></div></div>
+        <div class="var-verdict">Tiny variance</div>
+      </div>
+      <div class="var-card large">
+        <div class="var-label">Feature</div>
+        <div class="var-feature">Salary</div>
+        <div class="var-range">Range: 20,000 → 80,000 &nbsp;|&nbsp; Spread of 60,000</div>
+        <div class="bar-track"><div class="bar-fill"></div></div>
+        <div class="var-verdict">Enormous variance</div>
+      </div>
+    </div>
+
+    <p>Since PCA chases maximum variance, it will conclude that <strong>Salary is far more important than Age</strong> — even if Age is genuinely informative. The first principal component will align almost entirely with the Salary axis.</p>
+    <div class="callout">This is a measurement unit artifact, not real signal. Salary's variance is large because we're measuring in rupees, not because it's inherently more important.</div>
+  </div>
+</section>
+
+
+<!-- VISUAL INTUITION -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">03 — Visual Intuition</div>
+    <h2>Seeing the distortion</h2>
+    <p>Here's what the data looks like on each axis — and how PCA reacts to it.</p>
+
+    <div class="axes-duo">
+      <div class="axes-card bad">
+        <h4>Before Scaling <span>Distorted</span></h4>
+        <svg class="axis-svg" viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg">
+          <line x1="40" y1="10" x2="40" y2="170" stroke="#2a2a55" stroke-width="1"/>
+          <line x1="40" y1="170" x2="210" y2="170" stroke="#2a2a55" stroke-width="1"/>
+          <text x="120" y="192" font-family="JetBrains Mono" font-size="9" fill="#6b6890" text-anchor="middle">Age →</text>
+          <text x="16" y="90" font-family="JetBrains Mono" font-size="9" fill="#6b6890" text-anchor="middle" transform="rotate(-90,16,90)">Salary ↑</text>
+          <circle cx="60" cy="150" r="5" fill="#00f5ff" opacity="0.7" filter="url(#glow-c)"/>
+          <circle cx="75" cy="100" r="5" fill="#00f5ff" opacity="0.7"/>
+          <circle cx="90" cy="50"  r="5" fill="#00f5ff" opacity="0.7"/>
+          <line x1="75" y1="155" x2="80" y2="45" stroke="#ff2d78" stroke-width="2" marker-end="url(#arr-pink)"/>
+          <text x="88" y="68" font-family="JetBrains Mono" font-size="9" fill="#ff2d78">PC1</text>
+          <defs>
+            <filter id="glow-c"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <marker id="arr-pink" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#ff2d78"/>
+            </marker>
+          </defs>
+        </svg>
+        <p style="font-size:0.82rem;color:var(--muted);margin-top:12px;font-family:'JetBrains Mono',monospace;">PC1 ≈ Salary axis.<br>Age is ignored.</p>
+      </div>
+
+      <div class="axes-card good">
+        <h4>After Scaling <span>Fair</span></h4>
+        <svg class="axis-svg" viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg">
+          <line x1="40" y1="10" x2="40" y2="170" stroke="#2a2a55" stroke-width="1"/>
+          <line x1="40" y1="170" x2="210" y2="170" stroke="#2a2a55" stroke-width="1"/>
+          <text x="120" y="192" font-family="JetBrains Mono" font-size="9" fill="#6b6890" text-anchor="middle">Age (scaled) →</text>
+          <text x="12" y="90" font-family="JetBrains Mono" font-size="9" fill="#6b6890" text-anchor="middle" transform="rotate(-90,12,90)">Salary (scaled) ↑</text>
+          <circle cx="65"  cy="145" r="5" fill="#39ff85" opacity="0.8"/>
+          <circle cx="120" cy="100" r="5" fill="#39ff85" opacity="0.8"/>
+          <circle cx="180" cy="52"  r="5" fill="#39ff85" opacity="0.8"/>
+          <line x1="55" y1="155" x2="188" y2="42" stroke="#39ff85" stroke-width="2" marker-end="url(#arr-grn)"/>
+          <text x="185" y="36" font-family="JetBrains Mono" font-size="9" fill="#39ff85">PC1</text>
+          <defs>
+            <marker id="arr-grn" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#39ff85"/>
+            </marker>
+          </defs>
+        </svg>
+        <p style="font-size:0.82rem;color:var(--muted);margin-top:12px;font-family:'JetBrains Mono',monospace;">PC1 captures the true<br>diagonal relationship.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- STANDARDIZATION -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">04 — The Fix</div>
+    <h2>Standardization brings features to equal footing</h2>
+    <p><strong>StandardScaler</strong> applies the z-score formula to every feature, transforming each one to have mean = 0 and standard deviation = 1.</p>
+
+    <div class="formula-box">
+      <div class="formula-label">Standardization Formula</div>
+      <div class="formula-math">
+        z = <span class="frac"><span class="num">x − μ</span><span class="bar"></span><span class="den">σ</span></span>
+      </div>
+      <div class="formula-legend">
+        <div><strong>x</strong> original value</div>
+        <div><strong>μ</strong> feature mean</div>
+        <div><strong>σ</strong> standard deviation</div>
+        <div><strong>z</strong> standardized value</div>
+      </div>
+    </div>
+
+    <p>After applying this transformation:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Mean after scaling</th><th>Std Dev after scaling</th></tr></thead>
+        <tbody>
+          <tr><td>Age</td><td>0</td><td>1</td></tr>
+          <tr><td>Salary</td><td>0</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="after-table-grid">
+      <div class="stat-chip"><div class="num">μ = 0</div><div class="lbl">Zero mean — both features</div></div>
+      <div class="stat-chip"><div class="num">σ = 1</div><div class="lbl">Unit variance — both features</div></div>
+    </div>
+
+    <p style="margin-top:24px;">Now PCA works on the <strong>actual structure of the data</strong> — correlations and relationships — rather than being hijacked by differences in measurement units.</p>
+  </div>
+</section>
+
+
+<!-- MATH -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">05 — Mathematical Reason</div>
+    <h2>Why the covariance matrix demands scaling</h2>
+    <p>PCA is computed by performing eigendecomposition on the <strong>covariance matrix</strong> of the data. Covariance between two features X and Y is:</p>
+    <div class="callout" style="font-style:normal;font-family:'JetBrains Mono',monospace;font-size:0.9rem;">
+      Cov(X, Y) = E[(X − μ<sub>X</sub>)(Y − μ<sub>Y</sub>)]
+    </div>
+    <p>Covariance is <strong>scale-dependent</strong>. A feature measured in rupees will have variance on the order of millions, while a feature in years has variance in the tens. The covariance matrix will be dominated by the large-scale feature — and so will every eigenvector derived from it.</p>
+    <p>After standardization:</p>
+    <div class="rule-grid" style="margin-top:0;">
+      <div class="rule-card do">
+        <h3>✓ &nbsp;After scaling</h3>
+        <ul>
+          <li>Every feature has variance = 1</li>
+          <li>Covariance matrix is the correlation matrix</li>
+          <li>Eigenvalues reflect true data structure</li>
+          <li>No feature dominates by accident</li>
+        </ul>
+      </div>
+      <div class="rule-card skip">
+        <h3>✗ &nbsp;Without scaling</h3>
+        <ul>
+          <li>High-scale features have huge variance</li>
+          <li>Covariance matrix is distorted</li>
+          <li>First eigenvectors just follow large numbers</li>
+          <li>Low-scale features are effectively ignored</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- CLASSIC EXAMPLE -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">06 — Classic Example</div>
+    <h2>Height vs. Weight</h2>
+    <p>A textbook illustration — two features from a health dataset:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Height (meters)</th><th>Weight (kg)</th></tr></thead>
+        <tbody>
+          <tr><td>1.7</td><td>70</td></tr>
+          <tr><td>1.8</td><td>80</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:24px;">Weight values are numerically ~45× larger than Height values. Without scaling, PCA will effectively treat your dataset as if only Weight exists. Height's contribution will be nearly zero — not because it's uninformative, but because the numbers are small.</p>
+    <div class="callout">The difference is entirely in the choice of measurement unit. Measuring height in centimetres (170, 180) instead of metres (1.7, 1.8) would reverse the bias. Physical reality shouldn't change because we chose cm over m.</div>
+  </div>
+</section>
+
+
+<!-- WHEN TO SCALE -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">07 — Practical Rules</div>
+    <h2>When to scale — and when you might not need to</h2>
+
+    <div class="rule-grid">
+      <div class="rule-card do">
+        <h3>✓ &nbsp;Scale before PCA when:</h3>
+        <ul>
+          <li>Features have different units (age, salary, height)</li>
+          <li>Features have very different numerical ranges</li>
+          <li>You don't know the units or ranges in advance</li>
+          <li>Working with real-world tabular data (almost always)</li>
+        </ul>
+      </div>
+      <div class="rule-card skip">
+        <h3>○ &nbsp;May skip scaling when:</h3>
+        <ul>
+          <li>All features are already in the same units</li>
+          <li>All features have similar numerical ranges</li>
+          <li>Domain knowledge confirms no scale bias</li>
+          <li>e.g. pixel values in an image (all 0–255)</li>
+        </ul>
+      </div>
+    </div>
+
+    <p>In practice, the safe default is:</p>
+    <div class="pipeline">
+      <div class="pipe-step highlight-step">StandardScaler</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight-step">PCA</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">Downstream Model</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- CODE -->
+<section>
+  <div class="container fade-up">
+    <div class="section-label">08 — Implementation</div>
+    <h2>The standard pipeline in scikit-learn</h2>
+    <p>Here is the canonical two-line preprocessing pattern — use it as your default for any PCA workflow:</p>
+
+    <div class="code-wrap">
+      <div class="code-chip">Python · sklearn</div>
+<span class="comment"># Import the tools</span>
+<span class="keyword">from</span> sklearn.preprocessing <span class="keyword">import</span> <span class="cls">StandardScaler</span>
+<span class="keyword">from</span> sklearn.decomposition <span class="keyword">import</span> <span class="cls">PCA</span>
+
+<span class="comment"># Step 1 — Scale: zero mean, unit variance</span>
+X_scaled = <span class="cls">StandardScaler</span>().<span class="fn">fit_transform</span>(X)
+
+<span class="comment"># Step 2 — Reduce: find the top 2 principal components</span>
+pca = <span class="cls">PCA</span>(n_components=<span class="str">2</span>)
+X_pca = pca.<span class="fn">fit_transform</span>(X_scaled)
+
+<span class="comment"># Optional: inspect explained variance ratio</span>
+<span class="fn">print</span>(pca.explained_variance_ratio_)
+    </div>
+
+    <p>Or use a <strong>Pipeline</strong> to keep things clean and avoid data leakage:</p>
+
+    <div class="code-wrap">
+      <div class="code-chip">Python · Pipeline</div>
+<span class="keyword">from</span> sklearn.pipeline <span class="keyword">import</span> <span class="cls">Pipeline</span>
+
+pipe = <span class="cls">Pipeline</span>([
+    (<span class="str">'scaler'</span>, <span class="cls">StandardScaler</span>()),
+    (<span class="str">'pca'</span>,    <span class="cls">PCA</span>(n_components=<span class="str">2</span>)),
+])
+
+X_transformed = pipe.<span class="fn">fit_transform</span>(X)
+    </div>
+  </div>
+</section>
+
+
+<!-- MEMORY TRICK -->
+<div class="memory">
+  <span class="memory-label">One-line memory trick</span>
+  <div class="memory-text">
+    PCA follows <em>variance</em>. If your data is not scaled, PCA follows the feature with the <em>biggest numbers</em> — not necessarily the most <em>important information</em>.
+  </div>
+</div>
+
+
+<footer>
+  <div>Why Scale Before PCA · Machine Learning Fundamentals</div>
+  <div style="font-style:italic;font-size:12px;color:#3d3d60;">StandardScaler → PCA is the most common pipeline.</div>
+</footer>
+
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(el => {
+      if (el.isIntersecting) {
+        el.target.classList.add('visible');
+        el.target.querySelectorAll('.bar-fill').forEach(b => b.classList.add('animated'));
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
